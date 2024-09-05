@@ -56,6 +56,7 @@ pub = rospy.Publisher('wheel_speed', Float32MultiArray, queue_size=10)
 rospy.sleep(1)
 
 u = twist2wheels(wz=1.5, vx=1, vy=0)
+print('u',u)
 twist_inv = u_to_twist(u)
 print('twist msg inversed from u',twist_inv)
 twist_inv3 = u_to_twist3(u)
