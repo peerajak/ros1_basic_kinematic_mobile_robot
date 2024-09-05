@@ -13,6 +13,8 @@ def odom_callback(msg):
                                          msg.pose.pose.orientation.y, 
                                          msg.pose.pose.orientation.z, 
                                          msg.pose.pose.orientation.w])
+    print('odom callback phi ',phi)
+
     
 rospy.init_node('absolute_motion', anonymous=True)
 pub = rospy.Publisher('wheel_speed', Float32MultiArray, queue_size=10)
@@ -20,6 +22,7 @@ position_sub = rospy.Subscriber("/odom", Odometry, odom_callback)
 rospy.sleep(1)
 
 def velocity2twist(dphi, dx, dy):
+    print('velocity2twist',phi)
     R = np.array([[1, 0, 0],
                   [0,  np.cos(phi), np.sin(phi)],
                   [0, -np.sin(phi), np.cos(phi)]])
@@ -61,9 +64,10 @@ for (mx, my, delta_phi) in motions:
     # constant angular velocity for turning at 30 degrees/second
     # dphi = math.radians(30)
     # publish this motion for about 3 seconds = iterations (300) x sleep value of 0.01 
-    iterations = 300
+    iterations = 100
     for _ in range(iterations):
         wz, vx, vy = velocity2twist(dphi, dx, dy)
+        print(wz, vx, vy)
         u = twist2wheels(wz, vx, vy)
         msg = Float32MultiArray(data=u)
         pub.publish(msg)
