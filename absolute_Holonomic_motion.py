@@ -47,7 +47,7 @@ def twist2wheels(wz, vx, vy):
     return u.flatten().tolist()
 
 for _ in range(100):
-    wz, vx, vy = velocity2twist(dphi=1.5708, dx=1, dy=0)
+    wz, vx, vy = velocity2twist(dphi=1.5708, dx=1, dy=1)
     u = twist2wheels(wz, vx, vy)
     msg = Float32MultiArray(data=u)
     pub.publish(msg)
