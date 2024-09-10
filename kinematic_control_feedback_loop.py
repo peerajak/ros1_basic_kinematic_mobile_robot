@@ -73,9 +73,10 @@ def go_to(xg, yg, thetag_degrees):
     global k_rho
     global k_alpha
     global k_beta
+    improvement_version = False
     rho = float("inf")
     thetag = normalize(math.radians(thetag_degrees))
-    while rho>0.001:
+    while rho>0.01:
         ############
         ### YOUR ###
         ### CODE ###
@@ -87,12 +88,18 @@ def go_to(xg, yg, thetag_degrees):
         rho = math.sqrt(delta_x**2 + delta_y**2)
         alpha = normalize(-theta_pos + math.atan2(delta_y , delta_x))
         beta  = normalize(thetag - (alpha + theta_pos))
-
+        
         v = k_rho*rho
         w = k_alpha*alpha + k_beta*beta
         print('rho {}'.format(rho))
+        if improvement_version:
+            norm_vw = math.sqrt(v**2 + w**2)
+            v_constant = 0.65
+            s = v_constant/norm_vw
+        else:
+            s = 1
         ############
-        velocity.move(v, w)
+        velocity.move(v/s, w/s)
         rospy.sleep(0.01)
         
 k_rho = 0.3
@@ -103,7 +110,12 @@ k_beta = -0.15
 velocity = VelocityController('/cmd_vel')
 odometry = OdometryReader('/odom')
 
-go_to(3,3, -180)
+v=0.65
+waypoints = [(1,-1,-90),(2,-2,0),(3,-2,0),(4,-1,90),(3.5,-0.5,180),
+             (3,0,90),(3,1,90),(2,1,-90),(1,0,180),(0,0,180)]
+
+for xg, yg, thetag in waypoints:
+    go_to(xg, yg, thetag)
 
 velocity.move(0,0)
 odometry.unregister()
