@@ -94,7 +94,7 @@ def go_to(xg, yg, thetag_degrees):
     global phi
     rho = float("inf")
     thetag = normalize(math.radians(thetag_degrees))
-    while rho>0.04:
+    while rho>0.01:
         ############
         ### YOUR ###
         ### CODE ###
@@ -104,17 +104,18 @@ def go_to(xg, yg, thetag_degrees):
         delta_x = xg - x_pos
         delta_y = yg - y_pos
         rho = math.sqrt(delta_x**2 + delta_y**2)
-        alpha = normalize(-theta_pos + math.atan2(delta_y , delta_x))
+        alpha = 0#normalize(-theta_pos + math.atan2(delta_y , delta_x))
         beta  = normalize(thetag - (alpha + theta_pos))
-        #wz, vx, vy = velocity2twist(dphi=thetag, dx=delta_x , dy=delta_y )
-
-        v = k_rho*rho
-        vx = v*math.cos(theta_pos)
-        vy = v*math.sin(theta_pos)
         w = k_alpha*alpha + k_beta*beta
+        wz, vx, vy = velocity2twist(dphi=w, dx=delta_x , dy=delta_y )
+
+        #v = k_rho*rho
+        #vx = v*math.cos(theta_pos)
+        #vy = v*math.sin(theta_pos)
+        #w = k_alpha*alpha + k_beta*beta
         print('rho {}'.format(rho))
         ############
-        u = twist2wheels(w, vx, vy)
+        u = twist2wheels(wz, vx, vy)
         msg = Float32MultiArray(data=u)
         pub.publish(msg)
         rospy.sleep(0.01)
@@ -127,7 +128,7 @@ k_beta = -0.15
 
 odometry = OdometryReader('/odom')
 
-motions = [(1,1,90)]#, (0,0,90), (0,1,90), (0,0,90)]
+motions = [(1,1,90), (-1,1,0), (-1,-1,-90), (1,-1,-45),(0,0,0)]
 
 for (mx, my, mphi) in motions:
     dx = mx

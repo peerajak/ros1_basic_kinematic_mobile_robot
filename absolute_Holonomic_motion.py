@@ -45,13 +45,15 @@ def twist2wheels(wz, vx, vy):
     twist.shape = (3,1)
     u = np.dot(H, twist)
     return u.flatten().tolist()
-
-for _ in range(100):
+hz = 100
+time_of_hz = 1.0/hz
+print('hz = {}, time interval of hz = {}'.format(hz,time_of_hz))
+for _ in range(hz):
     wz, vx, vy = velocity2twist(dphi=1.5708, dx=1, dy=1)
     u = twist2wheels(wz, vx, vy)
     msg = Float32MultiArray(data=u)
     pub.publish(msg)
-    rospy.sleep(0.01)
+    rospy.sleep(time_of_hz)
     
 stop = [0,0,0,0]
 msg = Float32MultiArray(data=stop)
