@@ -94,7 +94,7 @@ def go_to(xg, yg, thetag_degrees):
     global phi
     rho = float("inf")
     thetag = normalize(math.radians(thetag_degrees))
-    while rho>0.01:
+    while rho>0.015:
         ############
         ### YOUR ###
         ### CODE ###
@@ -113,7 +113,7 @@ def go_to(xg, yg, thetag_degrees):
         #vx = v*math.cos(theta_pos)
         #vy = v*math.sin(theta_pos)
         #w = k_alpha*alpha + k_beta*beta
-        print('rho {}'.format(rho))
+        print('rho {} thetag {} beta {}'.format(rho,thetag,beta))
         ############
         u = twist2wheels(wz, vx, vy)
         msg = Float32MultiArray(data=u)
@@ -128,9 +128,9 @@ k_beta = -0.15
 
 odometry = OdometryReader('/odom')
 
-motions = [(1,1,90), (-1,1,0), (-1,-1,-90), (1,-1,-45),(0,0,0)]
+ref_positions= [(1,-1,0), (2,0,0), (3,1,0), (4,0,90),(3.5,-0.5,0),(3,-1,-90),(2,0,0),(1,1,0),(0,0,0)]
 
-for (mx, my, mphi) in motions:
+for (mx, my, mphi) in ref_positions:
     dx = mx
     dy = my
     dphi = mphi
