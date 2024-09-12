@@ -63,12 +63,9 @@ def normalize(angle):
     ############
 
 
-# for _ in range(10):
-#     angle = (random.random()-0.5)*2*math.pi
-#     new_angle = angle + (random.randint(0,10)-5) * 2*math.pi
-#     norm_angle = normalize(new_angle)
-#     print('%9.4f %9.4f %9.4f' %(angle, new_angle, norm_angle))
 
+
+#positive w is ccw ,negative w is cw
 def go_to(xg, yg, thetag_degrees):
     global k_rho
     global k_alpha
@@ -102,8 +99,8 @@ k_beta = -0.15
 
 velocity = VelocityController('/cmd_vel')
 odometry = OdometryReader('/odom')
-
-go_to(3,3, -180)
+#positive w is ccw ,negative w is cw
+go_to(3,3, -90)
 
 velocity.move(0,0)
 odometry.unregister()
