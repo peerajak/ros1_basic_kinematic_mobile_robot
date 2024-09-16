@@ -123,7 +123,7 @@ def go_to(xg, yg, thetag_degrees):
         
 k_rho = 0.3
 k_alpha = 0.8
-k_beta = -0.15
+k_beta = 1#-0.15
 
 
 
