@@ -4,7 +4,7 @@ from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
 from std_msgs.msg import Float32MultiArray
 import math
-import random
+import time
 
 rospy.init_node('kinematic_controller_holonomic', anonymous=True)
 pub = rospy.Publisher('wheel_speed', Float32MultiArray, queue_size=10)
@@ -179,13 +179,17 @@ pid_controller = PID_controller(1,0.3,0.1,0.7,0.5,0.1)
 odometry = OdometryReader('/odom')
 
 v=0.65
-ref_ponits = [(3,2,45)]
+ref_ponits = [(3,2),(1,0),(3,-3)]
 threshold = 0.01
 threshold_angle = math.radians(0.1)
-
-for xg, yg, thetag_degree in ref_ponits:
-    thetag = math.radians(thetag_degree)
+xg = 0
+yg = 0
+for xg_angle, yg_angle in ref_ponits:
+    thetag = math.atan2(yg_angle,xg_angle)
+    #thetag = math.radians(thetag_degree)
     simulate_pid(10,pid_controller,xg,yg,thetag, threshold, threshold_angle)
+    print("rotating facing ({},{})".format(xg_angle,yg_angle))
+    time.sleep(4)
 
 
 stop = [0,0,0,0]
