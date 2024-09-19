@@ -52,49 +52,59 @@ class PID_controller():
         self.integral_theta = 0
         self.Hz = 10.0
         self.dt = 1/self.Hz
+        self.cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
+        rospy.sleep(0.1)
+
+    def move(self, linear_velocity=0.0, angular_velocity=0.0):
+        msg = Twist()
+        msg.linear.x = linear_velocity
+        msg.angular.z = angular_velocity
+        self.cmd_vel.publish(msg)
+
+    def stop_moving(self):
+        self.move()
 
 
     def pid_controller(self, error_signal):
         #Todo : unit test against normalized angle
-        dtheta_pos,dx_pos,dy_pos = error_signal
+        d_distance,d_angle_to_goal = error_signal
         # Todo Is it the case delta_x or delta_x/self.dt?
-        omega = dtheta_pos/self.dt
-        vx = dx_pos/self.dt
-        vy = dy_pos/self.dt
-        self.integral_x_pos += self.dt *dx_pos
-        self.integral_y_pos += self.dt *dy_pos
-        self.integral_theta += self.dt *dtheta_pos
+        dtheta_pos_and_to_goal = d_angle_to_goal
+        omega = dtheta_pos_and_to_goal/self.dt
+        vx = d_distance/self.dt
+        self.integral_x_pos += self.dt *d_distance
+        self.integral_theta += self.dt *dtheta_pos_and_to_goal 
         self.integral_theta = self.integral_theta
-        proportion_signal_x = self.Kp*dx_pos
-        proportion_signal_y = self.Kp*dy_pos
-        proportion_signal_theta = self.Kp_angle*dtheta_pos
+        proportion_signal_x = self.Kp*d_distance
+        proportion_signal_theta = self.Kp_angle*dtheta_pos_and_to_goal 
         integral_signal_x = self.Ki*self.integral_x_pos
-        integral_signal_y = self.Ki*self.integral_y_pos
         integral_signal_theta = self.Ki_angle*self.integral_theta
         derivative_signal_x = self.Kd * vx
-        derivative_signal_y = self.Kd * vy
         derivative_signal_theta = self.Kd_angle * omega
         omega = normalize(proportion_signal_theta + integral_signal_theta + derivative_signal_theta)
         vx = proportion_signal_x + integral_signal_x + derivative_signal_x
-        vy = proportion_signal_y + integral_signal_y + derivative_signal_y
-        controller_signal = (omega, vx, vy)
+        controller_signal = (omega, vx)
         return controller_signal
 
     def error(self, output_signal,xg, yg, thetag): 
         #Todo : unit test against normalized angle
         theta_pos, x_pos, y_pos = output_signal
-        error_signal = (thetag - theta_pos, xg - x_pos, yg - y_pos)
+        distance_to_goal = math.sqrt((xg-x_pos)**2 + (yg-y_pos)**2)
+        angle_to_goal = math.atan2(yg - y_pos,xg-x_pos)
+        error_signal = (distance_to_goal, normalize(angle_to_goal - theta_pos))
         print('output signal position theta:{} x:{} y:{}'.format(theta_pos, x_pos, y_pos))
-        print('error_signal d_theta:{} dx:{} dy:{}'.format(error_signal[0],error_signal[1],error_signal[2]))
+        print('error_signal distance_to_goal:{} error_angle_to_goal:{}'.format(error_signal[0],error_signal[1]))
         return error_signal
 
     def plant_process(self, controller_signal):
         global odometry
-        w, delta_x, delta_y = controller_signal
-        wz, vx, vy = velocity2twist(dphi=w, dx=delta_x , dy=delta_y )
-        u = twist2wheels(wz, vx, vy)
-        msg = Float32MultiArray(data=u)
-        pub.publish(msg)
+        w, delta_x = controller_signal
+        # TODO 
+        #wz, vx, vy = velocity2twist(dphi=w, dx=delta_x , dy=delta_y )
+        #u = twist2wheels(wz, vx, vy)
+        #msg = Float32MultiArray(data=u)
+        #pub.publish(msg)
+        self.move(delta_x, w)
         x_pos =  odometry.odom_pose['x']
         y_pos =  odometry.odom_pose['y']
         theta_pos = odometry.odom_pose['theta']
@@ -123,35 +133,7 @@ def normalize(angle):
             return normalized_angle
     return None
     
-    ############
-def velocity2twist(dphi, dx, dy):
-    global phi
-    R = np.array([[1, 0, 0],
-                  [0,  np.cos(phi), np.sin(phi)],
-                  [0, -np.sin(phi), np.cos(phi)]])
-    v = np.array([dphi, dx, dy])
-    v.shape = (3,1)
-    twist = np.dot(R, v)
-    wz, vx, vy = twist.flatten().tolist()
-    return wz, vx, vy
 
-def twist2wheels(wz, vx, vy):
-    
-    # half of the wheel base distance
-    l = 0.500/2
-    # the radius of the wheels
-    r = 0.254/2
-    # half of track width
-    w = 0.548/2
-    
-    H = np.array([[-l-w, 1, -1],
-                  [ l+w, 1,  1],
-                  [ l+w, 1, -1],
-                  [-l-w, 1,  1]]) / r
-    twist = np.array([wz, vx, vy])
-    twist.shape = (3,1)
-    u = np.dot(H, twist)
-    return u.flatten().tolist()
 
 
 def simulate_pid(duration, pid_controller, xg, yg, thetag ,threshold, threshold_angle):
@@ -169,28 +151,24 @@ def simulate_pid(duration, pid_controller, xg, yg, thetag ,threshold, threshold_
         error = pid_controller.error(output_signal, xg, yg, thetag)
         res = pid_controller.pid_controller(error)
         output_signal = pid_controller.plant_process(res)
-        distance_error_norm = math.sqrt(error[1]**2+error[2]**2)
-        error_angle = abs(error[0])
+        distance_error_norm =error[0]
+        error_angle = abs(error[1])
         print('distance_error_norm  {} angle_error {}'.format(distance_error_norm, error_angle ))
         rospy.sleep(dt)
         # Keep the statistics.
 
-pid_controller = PID_controller(1,0.3,0.1,0.7,0.5,0.1)
+
+pid_controller = PID_controller(0.1,0.0,0.0,0.1,0.1,0.0)
 odometry = OdometryReader('/odom')
 
 v=0.65
-ref_ponits = [(3,2,45),(4,-2,-90),(0,0,0)]
+ref_ponits = [(2,-2,0)]
 threshold = 0.01
-threshold_angle = math.radians(0.1)
+threshold_angle = 0.1# math.radians(0.1)
 
 for xg, yg, thetag_degree in ref_ponits:
     thetag = math.radians(thetag_degree)
     simulate_pid(10,pid_controller,xg,yg,thetag, threshold, threshold_angle)
 
 
-stop = [0,0,0,0]
-msg = Float32MultiArray(data=stop)
-pub.publish(msg)
-odometry.unregister()
-error = math.hypot(odometry.odom_pose['x'], odometry.odom_pose['y'])
-print('Final positioning error is %.2fm' % error)
+pid_controller.stop_moving()
