@@ -4,7 +4,7 @@ from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
 from std_msgs.msg import Float32MultiArray
 import math
-import random
+import time
 
 rospy.init_node('kinematic_controller_holonomic', anonymous=True)
 pub = rospy.Publisher('wheel_speed', Float32MultiArray, queue_size=10)
@@ -55,6 +55,11 @@ class PID_controller():
         self.cmd_vel = rospy.Publisher("/cmd_vel", Twist, queue_size=10)
         rospy.sleep(0.1)
 
+    def reset(self):
+        self.integral_x_pos = 0
+        self.integral_y_pos = 0
+        self.integral_theta = 0  
+
     def move(self, linear_velocity=0.0, angular_velocity=0.0):
         msg = Twist()
         msg.linear.x = linear_velocity
@@ -68,15 +73,15 @@ class PID_controller():
     def pid_controller(self, error_signal):
         #Todo : unit test against normalized angle
         d_distance,d_angle_to_goal = error_signal
+        d_distance_x = d_distance*math.cos(d_angle_to_goal)
         # Todo Is it the case delta_x or delta_x/self.dt?
-        dtheta_pos_and_to_goal = d_angle_to_goal
-        omega = dtheta_pos_and_to_goal/self.dt
-        vx = d_distance/self.dt
-        self.integral_x_pos += self.dt *d_distance
-        self.integral_theta += self.dt *dtheta_pos_and_to_goal 
-        self.integral_theta = self.integral_theta
-        proportion_signal_x = self.Kp*d_distance
-        proportion_signal_theta = self.Kp_angle*dtheta_pos_and_to_goal 
+        #dtheta_pos_and_to_goal = d_angle_to_goal
+        omega = d_angle_to_goal/self.dt
+        vx = d_distance_x/self.dt
+        self.integral_x_pos += d_distance_x
+        self.integral_theta += d_angle_to_goal
+        proportion_signal_x = self.Kp*d_distance_x
+        proportion_signal_theta = self.Kp_angle*d_angle_to_goal
         integral_signal_x = self.Ki*self.integral_x_pos
         integral_signal_theta = self.Ki_angle*self.integral_theta
         derivative_signal_x = self.Kd * vx
@@ -86,7 +91,7 @@ class PID_controller():
         controller_signal = (omega, vx)
         return controller_signal
 
-    def error(self, output_signal,xg, yg, thetag): 
+    def error(self, output_signal,xg, yg): 
         #Todo : unit test against normalized angle
         theta_pos, x_pos, y_pos = output_signal
         distance_to_goal = math.sqrt((xg-x_pos)**2 + (yg-y_pos)**2)
@@ -136,7 +141,7 @@ def normalize(angle):
 
 
 
-def simulate_pid(duration, pid_controller, xg, yg, thetag ,threshold, threshold_angle):
+def simulate_pid(duration, pid_controller, xg, yg, threshold):
     global odometry
     dt = 0.1   
     x_pos =  odometry.odom_pose['x']
@@ -147,28 +152,31 @@ def simulate_pid(duration, pid_controller, xg, yg, thetag ,threshold, threshold_
     error_angle = 100000 #some large number
 
     #for i in range(1, len(times)):
-    while(distance_error_norm > threshold or error_angle > threshold_angle):
-        error = pid_controller.error(output_signal, xg, yg, thetag)
+    while(distance_error_norm > threshold ):
+        error = pid_controller.error(output_signal, xg, yg)
         res = pid_controller.pid_controller(error)
         output_signal = pid_controller.plant_process(res)
         distance_error_norm =error[0]
         error_angle = abs(error[1])
         print('distance_error_norm  {} angle_error {}'.format(distance_error_norm, error_angle ))
         rospy.sleep(dt)
-        # Keep the statistics.
+    
+    pid_controller.reset()
 
 
-pid_controller = PID_controller(0.1,0.0,0.0,0.1,0.1,0.0)
+
+pid_controller = PID_controller( 0.1,0.0,0.05,0.15,0.0,0.05)# good value 0.1,0.0,0.05,0.15,0.0,0.05
 odometry = OdometryReader('/odom')
 
 v=0.65
-ref_ponits = [(2,-2,0)]
+ref_ponits = [(2,-2),(4,2),(6,0),(4,-2),(2,2),(0,0)]
 threshold = 0.01
-threshold_angle = 0.1# math.radians(0.1)
-
-for xg, yg, thetag_degree in ref_ponits:
-    thetag = math.radians(thetag_degree)
-    simulate_pid(10,pid_controller,xg,yg,thetag, threshold, threshold_angle)
 
 
-pid_controller.stop_moving()
+for xg, yg in ref_ponits:
+    simulate_pid(10,pid_controller,xg,yg, threshold)
+    print("Goal ({},{})".format(xg,yg))
+    pid_controller.stop_moving()
+    time.sleep(4)
+
+

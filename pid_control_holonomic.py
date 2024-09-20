@@ -4,7 +4,7 @@ from nav_msgs.msg import Odometry
 from tf.transformations import euler_from_quaternion
 from std_msgs.msg import Float32MultiArray
 import math
-import random
+import time
 
 rospy.init_node('kinematic_controller_holonomic', anonymous=True)
 pub = rospy.Publisher('wheel_speed', Float32MultiArray, queue_size=10)
@@ -53,6 +53,10 @@ class PID_controller():
         self.Hz = 10.0
         self.dt = 1/self.Hz
 
+    def reset(self):
+        self.integral_x_pos = 0
+        self.integral_y_pos = 0
+        self.integral_theta = 0   
 
     def pid_controller(self, error_signal):
         #Todo : unit test against normalized angle
@@ -61,10 +65,9 @@ class PID_controller():
         omega = dtheta_pos/self.dt
         vx = dx_pos/self.dt
         vy = dy_pos/self.dt
-        self.integral_x_pos += self.dt *dx_pos
-        self.integral_y_pos += self.dt *dy_pos
-        self.integral_theta += self.dt *dtheta_pos
-        self.integral_theta = self.integral_theta
+        self.integral_x_pos += dx_pos
+        self.integral_y_pos += dy_pos
+        self.integral_theta += dtheta_pos
         proportion_signal_x = self.Kp*dx_pos
         proportion_signal_y = self.Kp*dy_pos
         proportion_signal_theta = self.Kp_angle*dtheta_pos
@@ -121,6 +124,7 @@ def normalize(angle):
         normalized_angle += sign_multiplier*2*math.pi 
         if normalized_angle >= -math.pi and normalized_angle <= math.pi:
             return normalized_angle
+    assert True
     return None
     
     ############
@@ -174,8 +178,9 @@ def simulate_pid(duration, pid_controller, xg, yg, thetag ,threshold, threshold_
         print('distance_error_norm  {} angle_error {}'.format(distance_error_norm, error_angle ))
         rospy.sleep(dt)
         # Keep the statistics.
+    pid_controller.reset()
 
-pid_controller = PID_controller(1,0.3,0.1,0.7,0.5,0.1)
+pid_controller = PID_controller(1,0.1,0.1,0.7,0.1,0.1)
 odometry = OdometryReader('/odom')
 
 v=0.65
@@ -186,6 +191,11 @@ threshold_angle = math.radians(0.1)
 for xg, yg, thetag_degree in ref_ponits:
     thetag = math.radians(thetag_degree)
     simulate_pid(10,pid_controller,xg,yg,thetag, threshold, threshold_angle)
+    print("Goal theta degree {} at ({},{})".format(thetag_degree, xg,yg))
+    stop = [0,0,0,0]
+    msg = Float32MultiArray(data=stop)
+    pub.publish(msg)
+    time.sleep(4)
 
 
 stop = [0,0,0,0]
