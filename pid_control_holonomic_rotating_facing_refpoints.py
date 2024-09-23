@@ -65,9 +65,9 @@ class PID_controller():
         omega = dtheta_pos/self.dt
         vx = dx_pos/self.dt
         vy = dy_pos/self.dt
-        self.integral_x_pos += dx_pos
-        self.integral_y_pos += dy_pos
-        self.integral_theta += dtheta_pos
+        self.integral_x_pos += dx_pos*self.dt
+        self.integral_y_pos += dy_pos*self.dt
+        self.integral_theta += dtheta_pos*self.dt
         proportion_signal_x = self.Kp*dx_pos
         proportion_signal_y = self.Kp*dy_pos
         proportion_signal_theta = self.Kp_angle*dtheta_pos
@@ -179,13 +179,13 @@ def simulate_pid(duration, pid_controller, xg, yg, thetag ,threshold, threshold_
         # Keep the statistics.
     pid_controller.reset()
 
-pid_controller = PID_controller(1,0.2,0.2,0.7,0.2,0.2)
+pid_controller = PID_controller(2.0,0.1,0.1,2.0,0.1,0.1)
 odometry = OdometryReader('/odom')
 
 v=0.65
 ref_ponits = [(3,2),(1,0),(3,-3),[1,0]]
 threshold = 0.01
-threshold_angle = math.radians(0.1)
+threshold_angle = 0.01# math.radians(0.1)
 xg = 0
 yg = 0
 for xg_angle, yg_angle in ref_ponits:

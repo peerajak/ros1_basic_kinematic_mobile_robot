@@ -78,8 +78,8 @@ class PID_controller():
         #dtheta_pos_and_to_goal = d_angle_to_goal
         omega = d_angle_to_goal/self.dt
         vx = d_distance_x/self.dt
-        self.integral_x_pos += d_distance_x
-        self.integral_theta += d_angle_to_goal
+        self.integral_x_pos += d_distance_x*self.dt
+        self.integral_theta += d_angle_to_goal*self.dt
         proportion_signal_x = self.Kp*d_distance_x
         proportion_signal_theta = self.Kp_angle*d_angle_to_goal
         integral_signal_x = self.Ki*self.integral_x_pos
